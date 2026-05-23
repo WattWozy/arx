@@ -23,7 +23,7 @@ That's it. Two commands, zero to value.
 
 ### Native binary (recommended)
 
-Download the binary for your platform from [GitHub Releases](https://github.com/WattWozy/archiTele/releases/latest):
+Download the binary for your platform from [GitHub Releases](https://github.com/WattWozy/arx/releases/latest):
 
 | Platform | Binary |
 |----------|--------|

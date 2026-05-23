@@ -43,12 +43,12 @@ runs:
       run: |
         VERSION="${{ inputs.version }}"
         if [ "$VERSION" = "latest" ]; then
-          VERSION=$(curl -sf https://api.github.com/repos/${{ github.repository }}/releases/latest \
+          VERSION=$(curl -sf https://api.github.com/repos/WattWozy/arx/releases/latest \
             | grep '"tag_name"' | head -1 | cut -d'"' -f4)
         fi
         echo "Downloading Arx $VERSION"
         curl -sSfL \
-          "https://github.com/${{ github.repository }}/releases/download/${VERSION}/arx.jar" \
+          "https://github.com/WattWozy/arx/releases/download/${VERSION}/arx.jar" \
           -o "${{ github.action_path }}/arx.jar"
 
     - name: Run Arx
