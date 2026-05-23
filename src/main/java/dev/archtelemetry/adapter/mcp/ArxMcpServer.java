@@ -109,7 +109,8 @@ public final class ArxMcpServer {
                 try {
                     String response = handleMessage(line);
                     if (response != null) {
-                        stdout.println(response);
+                        // MCP stdio transport requires one JSON-RPC message per line
+                        stdout.println(response.replace('\n', ' ').replace('\r', ' '));
                         stdout.flush();
                     }
                 } catch (Exception e) {
@@ -158,7 +159,7 @@ public final class ArxMcpServer {
     }
 
     private String handleToolsList(String id) {
-        StringBuilder sb = new StringBuilder("{\"tools\":[\n");
+        StringBuilder sb = new StringBuilder("{\"tools\":[");
         String[] defs = {
             toolDef("check_violations",
                 "Check architecture violations for specific files or the entire repo against a blueprint",
@@ -263,9 +264,8 @@ public final class ArxMcpServer {
                 + "}")
         };
         for (int i = 0; i < defs.length; i++) {
-            sb.append(defs[i]);
+            sb.append(defs[i].trim());
             if (i < defs.length - 1) sb.append(",");
-            sb.append("\n");
         }
         sb.append("]}");
         return successResponse(id, sb.toString());
