@@ -1,10 +1,10 @@
 #!/bin/sh
 # Arx installer — detects OS/arch, downloads binary, places in /usr/local/bin
-# Usage: curl -sSL https://github.com/WattWozy/archiTele/releases/latest/download/install.sh | sh
+# Usage: curl -sSL https://github.com/WattWozy/arx/releases/latest/download/install.sh | sh
 
 set -e
 
-REPO="WattWozy/archiTele"
+REPO="WattWozy/arx"
 INSTALL_DIR="${ARX_INSTALL_DIR:-/usr/local/bin}"
 BINARY_NAME="arx"
 
@@ -15,7 +15,7 @@ OS="$(uname -s)"
 case "$OS" in
   Linux)  OS=linux ;;
   Darwin) OS=darwin ;;
-  *)      die "Unsupported OS: $OS. Download manually from https://github.com/$REPO/releases" ;;
+  *)      die "Unsupported OS: $OS. Download manually from https://github.com/WattWozy/arx/releases" ;;
 esac
 
 # Detect arch
@@ -23,7 +23,7 @@ ARCH="$(uname -m)"
 case "$ARCH" in
   x86_64|amd64) ARCH=amd64 ;;
   aarch64|arm64) ARCH=arm64 ;;
-  *) die "Unsupported architecture: $ARCH. Download manually from https://github.com/$REPO/releases" ;;
+  *) die "Unsupported architecture: $ARCH. Download manually from https://github.com/WattWozy/arx/releases" ;;
 esac
 
 # Resolve latest version if not pinned
