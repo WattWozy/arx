@@ -1,0 +1,87 @@
+# Arx GitLab CI template
+#
+# Usage — copy the job or include via project reference:
+#
+#   include:
+#     - project: 'your-namespace/arx'
+#       ref: main
+#       file: '/ci/gitlab-ci-template.yml'
+#
+#   arx:
+#     extends: .arx
+#     variables:
+#       ARX_BLUEPRINT: "arch.blu"
+#       ARX_FAIL_ON: "new-violations"
+#
+# Required CI/CD variable for MR comments: GITLAB_TOKEN (project/group access token with api scope)
+
+variables:
+  ARX_VERSION: "latest"
+  ARX_BLUEPRINT: "arch.blu"
+  ARX_COMMITS: "20"
+  ARX_FAIL_ON: "new-violations"
+
+.arx:
+  stage: test
+  image: eclipse-temurin:21-jre-alpine
+  before_script:
+    - |
+      apk add --no-cache curl jq 2>/dev/null || true
+      VERSION="$ARX_VERSION"
+      if [ "$VERSION" = "latest" ]; then
+        VERSION=$(curl -sf https://api.github.com/repos/$CI_SERVER_HOST/$CI_PROJECT_PATH/releases/latest \
+          | jq -r '.tag_name')
+      fi
+      echo "Downloading Arx $VERSION"
+      curl -sSfL \
+        "https://github.com/$CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME/releases/download/${VERSION}/arx.jar" \
+        -o arx.jar
+  script:
+    - |
+      BASE_ARGS="--repo . --blueprint $ARX_BLUEPRINT --commits $ARX_COMMITS"
+
+      # Build fail-on args from comma-separated variable
+      FAIL_ARGS=""
+      if [ -n "$ARX_FAIL_ON" ]; then
+        IFS=',' read -ra CONDITIONS <<< "$ARX_FAIL_ON"
+        for cond in "${CONDITIONS[@]}"; do
+          cond="$(echo "$cond" | xargs)"
+          [ -n "$cond" ] && FAIL_ARGS="$FAIL_ARGS --fail-on $cond"
+        done
+      fi
+
+      # Generate HTML artifact (no fail-on here — artifact should always be produced)
+      java -jar arx.jar $BASE_ARGS --format html --out arx-report.html || true
+
+      # Generate markdown for MR comment
+      java -jar arx.jar $BASE_ARGS --format markdown --out arx-report.md || true
+
+      # Apply fail-on conditions — this determines the CI job exit code
+      java -jar arx.jar $BASE_ARGS $FAIL_ARGS
+  after_script:
+    - |
+      # Post MR comment if this is a merge request pipeline
+      if [ -n "$CI_MERGE_REQUEST_IID" ] && [ -f arx-report.md ] && [ -n "$GITLAB_TOKEN" ]; then
+        NOTE_BODY=$(cat arx-report.md)
+        STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+          --request POST \
+          --header "PRIVATE-TOKEN: $GITLAB_TOKEN" \
+          --form "body=$NOTE_BODY" \
+          "$CI_API_V4_URL/projects/$CI_PROJECT_ID/merge_requests/$CI_MERGE_REQUEST_IID/notes")
+        if [ "$STATUS" != "201" ]; then
+          echo "Warning: MR comment post returned HTTP $STATUS"
+        else
+          echo "MR comment posted successfully"
+        fi
+      fi
+  artifacts:
+    name: "arx-${CI_COMMIT_SHORT_SHA}"
+    paths:
+      - arx-report.html
+      - arx-report.md
+    expose_as: 'Arx Report'
+    when: always
+    expire_in: 30 days
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'

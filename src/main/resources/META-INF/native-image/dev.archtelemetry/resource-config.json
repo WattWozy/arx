@@ -1,0 +1,16 @@
+{
+  "resources": {
+    "includes": [
+      {"pattern": "org/eclipse/jgit/.*\\.properties"},
+      {"pattern": "org/eclipse/jgit/internal/.*\\.properties"},
+      {"pattern": "META-INF/services/org\\.eclipse\\.jgit\\..*"},
+      {"pattern": "META-INF/MANIFEST\\.MF"},
+      {"pattern": "index\\.html"}
+    ]
+  },
+  "bundles": [
+    {"name": "org.eclipse.jgit.internal.JGitText"},
+    {"name": "org.eclipse.jgit.pgm.internal.CLIText"},
+    {"name": "org.eclipse.jgit.nls.TranslationBundle"}
+  ]
+}

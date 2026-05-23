@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "arx": {
+      "command": "arx",
+      "args": [
+        "mcp-serve"
+      ]
+    }
+  }
+}

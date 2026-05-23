@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>arx</title>
+  <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --win-bg: #c0c0c0;
+      --win-surface: #dfdfdf;
+      --win-dark: #808080;
+      --win-darker: #404040;
+      --win-light: #ffffff;
+      --win-title: #000080;
+      --win-title-text: #ffffff;
+      --win-title-inactive: #808080;
+      --win-black: #000000;
+      --win-red: #aa0000;
+      --win-green: #008800;
+      --win-yellow: #886600;
+      --win-blue: #000080;
+      --win-link: #0000ee;
+      --font-system: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      --font-pixel: 'VT323', monospace;
+      --shadow-outset: inset -1px -1px 0 #404040, inset 1px 1px 0 #ffffff, inset -2px -2px 0 #808080, inset 2px 2px 0 #dfdfdf;
+      --shadow-inset: inset 1px 1px 0 #404040, inset -1px -1px 0 #ffffff, inset 2px 2px 0 #808080, inset -2px -2px 0 #dfdfdf;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-system);
+      font-size: 12px;
+      background: #008080;
+      color: var(--win-black);
+      min-height: 100vh;
+      padding: 8px;
+    }
+
+    /* ---- win98 window ---- */
+    .window {
+      background: var(--win-bg);
+      box-shadow: var(--shadow-outset);
+      margin-bottom: 8px;
+    }
+
+    .title-bar {
+      background: linear-gradient(90deg, var(--win-title), #1084d0);
+      padding: 3px 4px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      user-select: none;
+    }
+
+    .title-bar-text {
+      font-family: var(--font-system);
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--win-title-text);
+      flex: 1;
+      padding-left: 2px;
+    }
+
+    .title-bar-controls {
+      display: flex;
+      gap: 2px;
+    }
+
+    .title-bar-controls button {
+      width: 16px;
+      height: 14px;
+      background: var(--win-bg);
+      box-shadow: var(--shadow-outset);
+      border: none;
+      font-size: 9px;
+      line-height: 14px;
+      text-align: center;
+      cursor: default;
+      font-family: 'Marlett', sans-serif;
+      padding: 0;
+    }
+
+    .window-body {
+      padding: 8px;
+    }
+
+    /* ---- toolbar ---- */
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px;
+      background: var(--win-bg);
+      border-bottom: 1px solid var(--win-dark);
+      flex-wrap: wrap;
+    }
+
+    .toolbar label {
+      font-size: 11px;
+      color: var(--win-darker);
+    }
+
+    select,
+    input[type="number"] {
+      font-family: var(--font-system);
+      font-size: 12px;
+      background: var(--win-light);
+      color: var(--win-black);
+      border: none;
+      box-shadow: var(--shadow-inset);
+      padding: 3px 4px;
+    }
+
+    select {
+      padding-right: 16px;
+      min-width: 180px;
+    }
+
+    input[type="number"] {
+      width: 56px;
+    }
+
+    .btn {
+      font-family: var(--font-system);
+      font-size: 12px;
+      background: var(--win-bg);
+      color: var(--win-black);
+      border: none;
+      box-shadow: var(--shadow-outset);
+      padding: 3px 12px;
+      cursor: pointer;
+      min-width: 60px;
+    }
+
+    .btn:active {
+      box-shadow: var(--shadow-inset);
+      padding: 4px 11px 2px 13px;
+    }
+
+    /* ---- status bar ---- */
+    .status-bar {
+      display: flex;
+      gap: 2px;
+      padding: 2px;
+      background: var(--win-bg);
+    }
+
+    .status-bar-field {
+      box-shadow: var(--shadow-inset);
+      padding: 2px 6px;
+      font-size: 11px;
+      color: var(--win-darker);
+      flex: 1;
+    }
+
+    /* ---- group box ---- */
+    .group-box {
+      border: 1px solid var(--win-dark);
+      border-top-color: var(--win-dark);
+      border-left-color: var(--win-dark);
+      border-right-color: var(--win-light);
+      border-bottom-color: var(--win-light);
+      padding: 12px 10px 10px;
+      margin-bottom: 10px;
+      position: relative;
+    }
+
+    .group-box::after {
+      content: '';
+      position: absolute;
+      top: -1px;
+      left: -1px;
+      right: -1px;
+      bottom: -1px;
+      border: 1px solid transparent;
+      border-top-color: var(--win-light);
+      border-left-color: var(--win-light);
+      border-right-color: var(--win-dark);
+      border-bottom-color: var(--win-dark);
+      pointer-events: none;
+    }
+
+    .group-box legend {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--win-black);
+      padding: 0 4px;
+      background: var(--win-bg);
+    }
+
+    /* ---- summary cards ---- */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+
+    .summary-card {
+      box-shadow: var(--shadow-inset);
+      background: var(--win-light);
+      padding: 8px 10px;
+      text-align: center;
+    }
+
+    .summary-card .label {
+      font-size: 10px;
+      color: var(--win-dark);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .summary-card .value {
+      font-family: var(--font-pixel);
+      font-size: 32px;
+      line-height: 1.1;
+      color: var(--win-black);
+    }
+
+    .summary-card .trend {
+      font-size: 10px;
+      margin-top: 2px;
+    }
+
+    .trend-down {
+      color: var(--win-green);
+    }
+
+    .trend-up {
+      color: var(--win-red);
+    }
+
+    .trend-flat {
+      color: var(--win-dark);
+    }
+
+    /* ---- tables ---- */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+    }
+
+    th {
+      text-align: left;
+      padding: 3px 6px;
+      background: var(--win-bg);
+      box-shadow: var(--shadow-outset);
+      font-weight: 600;
+      font-size: 11px;
+      color: var(--win-black);
+      white-space: nowrap;
+    }
+
+    td {
+      padding: 2px 6px;
+      background: var(--win-light);
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    tr:nth-child(even) td {
+      background: #f0f0f0;
+    }
+
+    tr.selected td {
+      background: var(--win-title);
+      color: var(--win-title-text);
+    }
+
+    .mono {
+      font-family: var(--font-pixel);
+      font-size: 14px;
+      letter-spacing: 0.5px;
+    }
+
+    /* ---- badges ---- */
+    .badge {
+      font-family: var(--font-pixel);
+      font-size: 14px;
+      padding: 0 4px;
+    }
+
+    .badge-red {
+      color: var(--win-red);
+    }
+
+    .badge-green {
+      color: var(--win-green);
+    }
+
+    .badge-yellow {
+      color: var(--win-yellow);
+    }
+
+    /* ---- cycle chain ---- */
+    .cycle-chain {
+      font-family: var(--font-pixel);
+      font-size: 15px;
+      padding: 4px 0;
+      color: var(--win-red);
+    }
+
+    .cycle-chain .arrow {
+      color: var(--win-dark);
+      margin: 0 2px;
+    }
+
+    /* ---- tabs ---- */
+    .tab-strip {
+      display: flex;
+      gap: 0;
+      margin-bottom: -1px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .tab-btn {
+      font-family: var(--font-system);
+      font-size: 11px;
+      background: var(--win-bg);
+      border: 1px solid var(--win-dark);
+      border-bottom: 1px solid var(--win-bg);
+      padding: 3px 12px;
+      cursor: pointer;
+      position: relative;
+      margin-right: 2px;
+    }
+
+    .tab-btn.inactive {
+      background: #b0b0b0;
+      border-bottom: 1px solid var(--win-dark);
+      top: 2px;
+    }
+
+    .tab-content {
+      border: 1px solid var(--win-dark);
+      padding: 10px;
+      background: var(--win-bg);
+    }
+
+    /* ---- chart area ---- */
+    .chart-well {
+      box-shadow: var(--shadow-inset);
+      background: var(--win-light);
+      padding: 8px;
+      position: relative;
+    }
+
+    /* ---- instability bars ---- */
+    .inst-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 0;
+    }
+
+    .inst-name {
+      font-family: var(--font-pixel);
+      font-size: 14px;
+      width: 120px;
+      text-align: right;
+    }
+
+    .inst-track {
+      flex: 1;
+      height: 12px;
+      box-shadow: var(--shadow-inset);
+      background: var(--win-light);
+    }
+
+    .inst-fill {
+      height: 100%;
+    }
+
+    .inst-fill-low {
+      background: var(--win-green);
+    }
+
+    .inst-fill-mid {
+      background: #cc8800;
+    }
+
+    .inst-fill-high {
+      background: var(--win-red);
+    }
+
+    .inst-val {
+      font-family: var(--font-pixel);
+      font-size: 13px;
+      width: 36px;
+    }
+
+    /* ---- empty ---- */
+    .empty {
+      color: var(--win-dark);
+      font-size: 11px;
+      padding: 8px 0;
+      font-style: italic;
+    }
+
+    /* ---- layout ---- */
+    .columns {
+      display: flex;
+      gap: 8px;
+    }
+
+    .columns>* {
+      flex: 1;
+      min-width: 0;
+    }
+
+    /* ---- subtle modern touches ---- */
+    .window {
+      transition: box-shadow 0.15s ease;
+    }
+
+    .btn {
+      transition: all 0.05s ease;
+    }
+
+    .summary-card .value {
+      transition: color 0.2s ease;
+    }
+
+    table tr:hover td {
+      background: #e8e8ff !important;
+    }
+
+    tr.selected:hover td {
+      background: var(--win-title) !important;
+    }
+
+    @media (max-width: 700px) {
+      .summary-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .columns {
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- main window -->
+  <div class="window" style="max-width: 1100px; margin: 0 auto;">
+    <div class="title-bar">
+      <span class="title-bar-text">arx — In Latin, arx (arcis, f.) primarily means citadel, stronghold, or
+        fortress</span>
+      <div class="title-bar-controls">
+        <button aria-label="Minimize">_</button>
+        <button aria-label="Maximize">□</button>
+        <button aria-label="Close">×</button>
+      </div>
+    </div>
+
+    <!-- toolbar -->
+    <div class="toolbar">
+      <label for="repoSelect">Repository:</label>
+      <select id="repoSelect">
+        <option value="">— select —</option>
+      </select>
+      <label for="limitInput">Commits:</label>
+      <input id="limitInput" type="number" value="20" min="1" max="200">
+      <button class="btn" onclick="loadAll()">Scan</button>
+      <button class="btn" onclick="loadRepos()">Refresh</button>
+    </div>
+
+    <div class="window-body">
+
+      <!-- summary cards -->
+      <div class="summary-grid" id="summaryCards">
+        <div class="summary-card">
+          <div class="label">Violations</div>
+          <div class="value" id="sumViolations">—</div>
+          <div class="trend trend-flat" id="sumViolationsTrend">&nbsp;</div>
+        </div>
+        <div class="summary-card">
+          <div class="label">Cycles</div>
+          <div class="value" id="sumCycles">—</div>
+          <div class="trend trend-flat" id="sumCyclesTrend">&nbsp;</div>
+        </div>
+        <div class="summary-card">
+          <div class="label">Modules</div>
+          <div class="value" id="sumModules">—</div>
+          <div class="trend trend-flat">&nbsp;</div>
+        </div>
+        <div class="summary-card">
+          <div class="label">Hotspots</div>
+          <div class="value" id="sumHotspots">—</div>
+          <div class="trend trend-flat" id="sumHotspotsTrend">&nbsp;</div>
+        </div>
+      </div>
+
+      <!-- trend charts -->
+      <fieldset class="group-box">
+        <legend>Trends</legend>
+        <div class="tab-strip">
+          <button class="tab-btn" id="tabViolations" onclick="switchTab('violations')">Violations</button>
+          <button class="tab-btn inactive" id="tabCycles" onclick="switchTab('cycles')">Cycles</button>
+        </div>
+        <div class="tab-content">
+          <div class="chart-well" style="height: 200px;">
+            <canvas id="trendChart"></canvas>
+          </div>
+        </div>
+      </fieldset>
+
+      <!-- violations + hotspots side by side -->
+      <div class="columns">
+        <fieldset class="group-box">
+          <legend>Violations</legend>
+          <div id="violationsTable">
+            <div class="empty">No data loaded.</div>
+          </div>
+        </fieldset>
+        <fieldset class="group-box">
+          <legend>Hotspots</legend>
+          <div id="hotspotsTable">
+            <div class="empty">No data loaded.</div>
+          </div>
+        </fieldset>
+      </div>
+
+      <!-- module metrics -->
+      <fieldset class="group-box">
+        <legend>Module instability</legend>
+        <div id="instabilityBars">
+          <div class="empty">No data loaded.</div>
+        </div>
+      </fieldset>
+
+      <!-- module metrics table -->
+      <fieldset class="group-box">
+        <legend>Module metrics</legend>
+        <div style="overflow-x: auto;">
+          <div id="metricsTable">
+            <div class="empty">No data loaded.</div>
+          </div>
+        </div>
+      </fieldset>
+
+      <!-- cycles -->
+      <fieldset class="group-box">
+        <legend>Dependency cycles</legend>
+        <div id="cyclesDisplay">
+          <div class="empty">No data loaded.</div>
+        </div>
+      </fieldset>
+
+    </div>
+
+    <!-- status bar -->
+    <div class="status-bar">
+      <div class="status-bar-field" id="statusText">Ready</div>
+      <div class="status-bar-field" style="flex:0 0 160px" id="statusTime">&nbsp;</div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+  <script>
+    const api = (path) => fetch(path).then(r => { if (!r.ok) throw new Error(r.statusText); return r.json(); });
+    let trendChart = null;
+    let currentTab = 'violations';
+    let cachedViolationTrend = [];
+    let cachedCycleTrend = [];
+
+    function setStatus(msg) {
+      document.getElementById('statusText').textContent = msg;
+      document.getElementById('statusTime').textContent = new Date().toLocaleTimeString();
+    }
+
+    async function loadRepos() {
+      try {
+        const repos = await api('/api/repos');
+        const sel = document.getElementById('repoSelect');
+        sel.innerHTML = '<option value="">— select —</option>';
+        repos.forEach(r => { const o = document.createElement('option'); o.value = r; o.textContent = r; sel.appendChild(o); });
+        if (repos.length === 1) { sel.value = repos[0]; loadAll(); }
+        setStatus(`Found ${repos.length} repo(s)`);
+      } catch (e) { setStatus('Error loading repos: ' + e.message); }
+    }
+
+    async function loadAll() {
+      const repo = document.getElementById('repoSelect').value;
+      const limit = parseInt(document.getElementById('limitInput').value) || 20;
+      if (!repo) { setStatus('Select a repository'); return; }
+      setStatus('Loading...');
+      try {
+        const [snapshot, violations, cycles] = await Promise.all([
+          api(`/api/snapshot?repo=${encodeURIComponent(repo)}`),
+          api(`/api/violations?repo=${encodeURIComponent(repo)}&limit=${limit}`),
+          api(`/api/cycles?repo=${encodeURIComponent(repo)}&limit=${limit}`)
+        ]);
+        cachedViolationTrend = violations || [];
+        cachedCycleTrend = cycles || [];
+        renderSummary(snapshot);
+        renderTrendChart();
+        renderViolations(snapshot);
+        renderHotspots(snapshot);
+        renderInstability(snapshot);
+        renderMetricsTable(snapshot);
+        renderCycles(snapshot);
+        setStatus(`Loaded: ${snapshot.commitHash?.substring(0, 8) || '?'}`);
+      } catch (e) { setStatus('Error: ' + e.message); }
+    }
+
+    function renderSummary(s) {
+      if (!s) return;
+      document.getElementById('sumViolations').textContent = s.violations?.length ?? 0;
+      document.getElementById('sumCycles').textContent = s.cycles?.length ?? 0;
+      document.getElementById('sumModules').textContent = s.moduleMetrics?.length ?? 0;
+      document.getElementById('sumHotspots').textContent = s.hotspots?.length ?? 0;
+
+      // compute trend from violation history
+      if (cachedViolationTrend.length >= 2) {
+        const curr = cachedViolationTrend[0]?.violationCount ?? 0;
+        const prev = cachedViolationTrend[1]?.violationCount ?? 0;
+        const diff = curr - prev;
+        const el = document.getElementById('sumViolationsTrend');
+        if (diff < 0) { el.textContent = `▼ ${Math.abs(diff)}`; el.className = 'trend trend-down'; }
+        else if (diff > 0) { el.textContent = `▲ ${diff}`; el.className = 'trend trend-up'; }
+        else { el.textContent = '— stable'; el.className = 'trend trend-flat'; }
+      }
+    }
+
+    function switchTab(tab) {
+      currentTab = tab;
+      document.getElementById('tabViolations').className = tab === 'violations' ? 'tab-btn' : 'tab-btn inactive';
+      document.getElementById('tabCycles').className = tab === 'cycles' ? 'tab-btn' : 'tab-btn inactive';
+      renderTrendChart();
+    }
+
+    function renderTrendChart() {
+      const canvas = document.getElementById('trendChart');
+      if (trendChart) trendChart.destroy();
+
+      const data = currentTab === 'violations' ? cachedViolationTrend : cachedCycleTrend;
+      if (!data.length) return;
+
+      const reversed = [...data].reverse();
+      const labels = reversed.map(d => d.commitHash?.substring(0, 7) || '?');
+      const values = reversed.map(d => currentTab === 'violations' ? (d.violationCount ?? 0) : (d.cycleCount ?? 0));
+      const lineColor = currentTab === 'violations' ? '#aa0000' : '#886600';
+
+      trendChart = new Chart(canvas, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{
+            label: currentTab === 'violations' ? 'Violations' : 'Cycles',
+            data: values,
+            borderColor: lineColor,
+            backgroundColor: lineColor + '33',
+            borderWidth: 2,
+            pointRadius: 3,
+            pointBackgroundColor: lineColor,
+            fill: true,
+            tension: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: '#ffffcc',
+              titleColor: '#000',
+              bodyColor: '#000',
+              borderColor: '#808080',
+              borderWidth: 1,
+              titleFont: { family: "'VT323', monospace", size: 14 },
+              bodyFont: { family: "'VT323', monospace", size: 14 },
+              padding: 6,
+              cornerRadius: 0
+            }
+          },
+          scales: {
+            x: {
+              ticks: { font: { family: "'VT323', monospace", size: 12 }, color: '#404040', maxRotation: 45 },
+              grid: { color: '#e0e0e0' },
+              border: { color: '#808080' }
+            },
+            y: {
+              beginAtZero: true,
+              ticks: { font: { family: "'VT323', monospace", size: 12 }, color: '#404040', stepSize: 1 },
+              grid: { color: '#e0e0e0' },
+              border: { color: '#808080' }
+            }
+          }
+        }
+      });
+    }
+
+    function renderViolations(s) {
+      const el = document.getElementById('violationsTable');
+      if (!s?.violations?.length) { el.innerHTML = '<div class="empty">No violations. ✓</div>'; return; }
+      el.innerHTML = '<table><tr><th>Source</th><th>→</th><th>Target</th><th>File</th></tr>' +
+        s.violations.map(v => `<tr>
+      <td class="mono">${v.source || v.sourceModule || ''}</td>
+      <td style="color:var(--win-dark);text-align:center">→</td>
+      <td class="mono">${v.target || v.targetModule || ''}</td>
+      <td style="font-size:10px;color:var(--win-dark)">${v.sourceFile ? v.sourceFile.split('/').pop() + (v.lineNumber ? ':' + v.lineNumber : '') : ''}</td>
+    </tr>`).join('') + '</table>';
+    }
+
+    function renderHotspots(s) {
+      const el = document.getElementById('hotspotsTable');
+      if (!s?.hotspots?.length) { el.innerHTML = '<div class="empty">No hotspots.</div>'; return; }
+      const sorted = [...s.hotspots].sort((a, b) => b.score - a.score).slice(0, 10);
+      el.innerHTML = '<table><tr><th>Score</th><th>File</th><th>Churn</th><th>Cx</th></tr>' +
+        sorted.map(h => `<tr>
+      <td class="mono badge-red" style="font-weight:700">${Math.round(h.score)}</td>
+      <td style="font-size:10px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${h.filePath}">${h.filePath?.split('/').pop() || h.filePath}</td>
+      <td class="mono">${h.churn}</td>
+      <td class="mono">${h.complexity}</td>
+    </tr>`).join('') + '</table>';
+    }
+
+    function renderInstability(s) {
+      const el = document.getElementById('instabilityBars');
+      if (!s?.moduleMetrics?.length) { el.innerHTML = '<div class="empty">No data.</div>'; return; }
+      const sorted = [...s.moduleMetrics].sort((a, b) => a.instability - b.instability);
+      el.innerHTML = sorted.map(m => {
+        const val = m.instability ?? 0;
+        const pct = Math.round(val * 100);
+        const cls = val < 0.4 ? 'inst-fill-low' : val < 0.7 ? 'inst-fill-mid' : 'inst-fill-high';
+        return `<div class="inst-row">
+      <div class="inst-name">${m.module || m.moduleName}</div>
+      <div class="inst-track"><div class="inst-fill ${cls}" style="width:${Math.max(pct, 2)}%"></div></div>
+      <div class="inst-val">${val.toFixed(2)}</div>
+    </div>`;
+      }).join('');
+    }
+
+    function renderMetricsTable(s) {
+      const el = document.getElementById('metricsTable');
+      if (!s?.moduleMetrics?.length) { el.innerHTML = '<div class="empty">No data.</div>'; return; }
+      el.innerHTML = '<table><tr><th>Module</th><th>Fan In</th><th>Fan Out</th><th>Instab.</th><th>Abstr.</th><th>Dist.</th><th>WMC</th><th>Hub</th><th>PR</th><th>Btwn.</th><th>CRAP</th><th>Debt</th><th>Churn↑</th><th>Bus</th></tr>' +
+        s.moduleMetrics.map(m => `<tr>
+      <td class="mono">${m.module || m.moduleName}</td>
+      <td>${m.fanIn ?? ''}</td>
+      <td>${m.fanOut ?? ''}</td>
+      <td>${(m.instability ?? 0).toFixed(2)}</td>
+      <td>${(m.abstractness ?? 0).toFixed(2)}</td>
+      <td>${(m.distanceFromMainSequence ?? m.distance ?? 0).toFixed(2)}</td>
+      <td>${m.wmc ?? ''}</td>
+      <td>${(m.hubScore ?? 0).toFixed(2)}</td>
+      <td>${(m.pageRank ?? 0).toFixed(3)}</td>
+      <td>${(m.betweenness ?? 0).toFixed(3)}</td>
+      <td>${(m.crapScore ?? 0).toFixed(1)}</td>
+      <td>${(m.testDebtScore ?? 0).toFixed(1)}</td>
+      <td>${(m.churnAcceleration ?? 0).toFixed(2)}</td>
+      <td>${(m.busFactorRisk ?? 0).toFixed(2)}</td>
+    </tr>`).join('') + '</table>';
+    }
+
+    function renderCycles(s) {
+      const el = document.getElementById('cyclesDisplay');
+      if (!s?.cycles?.length) { el.innerHTML = '<div class="empty">No cycles detected. ✓</div>'; return; }
+      el.innerHTML = s.cycles.map((c, i) => {
+        const modules = Array.isArray(c) ? c : (c.modules || []);
+        return `<div class="cycle-chain">
+      <span style="color:var(--win-dark);font-size:11px;font-family:var(--font-system)">Cycle ${i + 1}:</span>
+      ${modules.join(' <span class="arrow">→</span> ')} <span class="arrow">→</span> ${modules[0]}
+    </div>`;
+      }).join('');
+    }
+
+    loadRepos();
+  </script>
+</body>
+
+</html>

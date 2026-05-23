@@ -1,0 +1,111 @@
+name: Arx
+description: 'Architectural governance analysis — enforces blueprint invariants on every PR'
+author: 'arx'
+
+inputs:
+  repo:
+    description: 'Path to the git repository'
+    default: '.'
+  blueprint:
+    description: 'Path to the blueprint file (relative to repo root)'
+    required: true
+  commits:
+    description: 'Number of commits to analyze'
+    default: '20'
+  format:
+    description: 'Report format for the output file (json|markdown|html)'
+    default: 'markdown'
+  fail-on:
+    description: |
+      Comma-separated conditions that cause a non-zero exit code.
+      Valid values: new-violations, any-violations, new-cycles, instability-threshold=<N>, stale-blueprint
+    default: 'new-violations'
+  version:
+    description: 'Arx release tag to download (default: latest)'
+    default: 'latest'
+  post-pr-comment:
+    description: 'Post a PR comment with the markdown report (true|false)'
+    default: 'true'
+
+outputs:
+  report-path:
+    description: 'Path to the generated report file'
+    value: ${{ steps.run.outputs.report-path }}
+  exit-code:
+    description: 'Exit code from arx (0 = pass, 1 = fail-on condition triggered)'
+    value: ${{ steps.run.outputs.exit-code }}
+
+runs:
+  using: composite
+  steps:
+    - name: Download Arx JAR
+      shell: bash
+      run: |
+        VERSION="${{ inputs.version }}"
+        if [ "$VERSION" = "latest" ]; then
+          VERSION=$(curl -sf https://api.github.com/repos/${{ github.repository }}/releases/latest \
+            | grep '"tag_name"' | head -1 | cut -d'"' -f4)
+        fi
+        echo "Downloading Arx $VERSION"
+        curl -sSfL \
+          "https://github.com/${{ github.repository }}/releases/download/${VERSION}/arx.jar" \
+          -o "${{ github.action_path }}/arx.jar"
+
+    - name: Run Arx
+      id: run
+      shell: bash
+      run: |
+        EXT="${{ inputs.format == 'json' && 'json' || inputs.format == 'html' && 'html' || 'md' }}"
+        REPORT="arx-report.${EXT}"
+
+        ARGS="--repo ${{ inputs.repo }}"
+        ARGS="$ARGS --blueprint ${{ inputs.blueprint }}"
+        ARGS="$ARGS --commits ${{ inputs.commits }}"
+        ARGS="$ARGS --format ${{ inputs.format }}"
+        ARGS="$ARGS --out $REPORT"
+
+        IFS=',' read -ra CONDITIONS <<< "${{ inputs.fail-on }}"
+        for cond in "${CONDITIONS[@]}"; do
+          cond="$(echo "$cond" | xargs)"
+          [ -n "$cond" ] && ARGS="$ARGS --fail-on $cond"
+        done
+
+        set +e
+        java -jar "${{ github.action_path }}/arx.jar" $ARGS
+        CODE=$?
+        set -e
+
+        echo "report-path=$REPORT" >> "$GITHUB_OUTPUT"
+        echo "exit-code=$CODE" >> "$GITHUB_OUTPUT"
+        exit $CODE
+
+    - name: Post PR comment
+      if: >
+        always() &&
+        inputs.post-pr-comment == 'true' &&
+        github.event_name == 'pull_request' &&
+        inputs.format == 'markdown'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        REPORT="${{ steps.run.outputs.report-path }}"
+        if [ -f "$REPORT" ]; then
+          # Replace existing bot comment if present, otherwise create new
+          EXISTING=$(gh pr view ${{ github.event.pull_request.number }} \
+            --json comments --jq '.comments[] | select(.body | startswith("# Arx")) | .databaseId' \
+            2>/dev/null | head -1 || true)
+          if [ -n "$EXISTING" ]; then
+            gh api \
+              --method PATCH \
+              "/repos/${{ github.repository }}/issues/comments/$EXISTING" \
+              --field body="$(cat "$REPORT")"
+          else
+            gh pr comment ${{ github.event.pull_request.number }} \
+              --body-file "$REPORT"
+          fi
+        fi
+
+branding:
+  icon: 'shield'
+  color: 'blue'

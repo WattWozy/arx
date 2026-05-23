@@ -1,0 +1,126 @@
+diff --git a/ROADMAP.md b/ROADMAP.md
+index 4acdd10..5f341b1 100644
+--- a/ROADMAP.md
++++ b/ROADMAP.md
+@@ -330,3 +330,21 @@ Derived from `powers.md` priority list, mapped to phases above:
+ ## Strategic positioning
+ 
+ The core insight: as AI writes more code, architectural governance becomes more valuable, not less. Human architects can't review every AI-generated import. The blueprint encodes their judgment once; ArchTelemetry enforces it continuously. The tool doesn't restrict what AI can build — it restricts where things are allowed to know about each other. Maximum creative freedom within structural invariants.
++
++---
++## THINGS TO CONSIDER:
++Things your tool already catches or could catch with small extensions:
++
++* Dependency cycles — you already have Tarjan SCC. But there's a subtler variant: temporal cycles. Module A depends on B in the code, but at runtime B calls back into A via an event bus, a callback, or a shared queue. Import analysis sees a clean one-way dependency. The runtime reality is circular. Catching this would require scanning for event/message patterns — classes that publish to a bus that other modules subscribe to. Hard but high value.
++
++* God modules — you catch this partially through fan-out and WMC. But there's a deeper signal: a module that acts as a passthrough. It doesn't do much itself, but everything flows through it. High fan-in and high fan-out. It's not complex, it's just a bottleneck. Your betweenness centrality metric in Phase 8 would catch this, but even before that you could flag modules where fan-in > 3 AND fan-out > 3 as routing hubs.
++
++## Things import analysis fundamentally misses:
++* Reflection and runtime wiring. Spring's @Autowired, Dagger's @Inject, any DI framework — these create dependencies that don't show up in imports. Your domain class might import nothing from infrastructure, but Spring wires an infrastructure bean into it at runtime. The import graph says clean. The runtime graph says violation. This is exactly where your friend's jQAssistant approach (bytecode scanning) has an advantage. For your tool, a pragmatic middle ground: scan for DI annotations and treat @Autowired or @Inject field types as implicit dependencies, even if the import is technically to a port interface.
++
++* Interface segregation violations. A module depends on an interface — clean, right? But if that interface has 15 methods and the module uses only 2, it's coupled to 13 methods it doesn't need. Any change to those 13 unused methods forces recompilation and potentially retesting. Import analysis sees one clean dependency. The reality is a fat interface creating hidden coupling. Detecting this requires parsing which methods are actually called, not just which types are imported.
++Leaky abstractions through types. Your domain port says CachePort. Clean. But the method signature is void store(RedisKey key, RedisTTL ttl). The abstraction leaks infrastructure concepts through its parameter types. Import-level analysis sees domain depending on the port, which is allowed. But the port's API reveals that it was designed for one specific implementation. Catching this requires semantic analysis of method signatures — are the parameter types domain concepts or infrastructure concepts?
++
++* Shared mutable state. Two modules that never import each other but both read and write to the same database table, the same file, the same cache key. They're coupled, but the coupling is invisible in the code. It exists only in the runtime environment. This is almost impossible to catch statically without additional metadata like database schema mappings.
++
++* Inheritance depth and fragile base class. A class in module A extends a class in module B which extends a class in module C. The import graph shows A→B and B→C, both allowed. But A is transitively fragile — a change in C can break A through B. Your instability metric hints at this, but explicit transitive fragility tracking would be stronger. "This module is 4 inheritance levels deep from a frequently changing base." 
+\ No newline at end of file
+diff --git a/pom.xml b/pom.xml
+index 442d87b..b4f5d75 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -43,6 +43,18 @@
+                 <artifactId>maven-surefire-plugin</artifactId>
+                 <version>3.2.5</version>
+             </plugin>
++            <plugin>
++                <groupId>org.apache.maven.plugins</groupId>
++                <artifactId>maven-jar-plugin</artifactId>
++                <version>3.3.0</version>
++                <configuration>
++                    <archive>
++                        <manifest>
++                            <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
++                        </manifest>
++                    </archive>
++                </configuration>
++            </plugin>
+             <plugin>
+                 <groupId>org.apache.maven.plugins</groupId>
+                 <artifactId>maven-shade-plugin</artifactId>
+@@ -65,6 +77,10 @@
+                             <transformers>
+                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                     <mainClass>dev.archtelemetry.adapter.cli.Main</mainClass>
++                                    <manifestEntries>
++                                        <Implementation-Version>${project.version}</Implementation-Version>
++                                        <Implementation-Title>${project.artifactId}</Implementation-Title>
++                                    </manifestEntries>
+                                 </transformer>
+                             </transformers>
+                             <createDependencyReducedPom>false</createDependencyReducedPom>
+@@ -82,4 +98,40 @@
+             </plugin>
+         </plugins>
+     </build>
++
++    <profiles>
++        <profile>
++            <id>native</id>
++            <build>
++                <plugins>
++                    <plugin>
++                        <groupId>org.graalvm.buildtools</groupId>
++                        <artifactId>native-maven-plugin</artifactId>
++                        <version>0.10.2</version>
++                        <extensions>true</extensions>
++                        <executions>
++                            <execution>
++                                <id>build-native</id>
++                                <goals>
++                                    <goal>compile-no-fork</goal>
++                                </goals>
++                                <phase>package</phase>
++                            </execution>
++                        </executions>
++                        <configuration>
++                            <imageName>archtelemetry</imageName>
++                            <mainClass>dev.archtelemetry.adapter.cli.Main</mainClass>
++                            <buildArgs>
++                                <buildArg>--no-fallback</buildArg>
++                                <buildArg>--initialize-at-build-time=org.slf4j,org.slf4j.simple,org.slf4j.impl</buildArg>
++                                <buildArg>--initialize-at-run-time=org.eclipse.jgit</buildArg>
++                                <buildArg>-H:+ReportExceptionStackTraces</buildArg>
++                                <buildArg>-march=compatibility</buildArg>
++                            </buildArgs>
++                        </configuration>
++                    </plugin>
++                </plugins>
++            </build>
++        </profile>
++    </profiles>
+ </project>
+diff --git a/src/main/java/dev/archtelemetry/adapter/cli/Main.java b/src/main/java/dev/archtelemetry/adapter/cli/Main.java
+index 55cdc1e..f52b9c0 100644
+--- a/src/main/java/dev/archtelemetry/adapter/cli/Main.java
++++ b/src/main/java/dev/archtelemetry/adapter/cli/Main.java
+@@ -54,6 +54,11 @@ public final class Main {
+ 
+         for (int i = 0; i < args.length; i++) {
+             switch (args[i]) {
++                case "--version", "-v" -> {
++                    String version = Main.class.getPackage().getImplementationVersion();
++                    System.out.println("archtelemetry " + (version != null ? version : "dev"));
++                    return;
++                }
+                 case "--repo"        -> repoPath = Path.of(args[++i]);
+                 case "--blueprint"   -> blueprintPath = Path.of(args[++i]);
+                 case "--commits"     -> commitCount = Integer.parseInt(args[++i]);
+@@ -360,6 +365,7 @@ public final class Main {
+                   archtelemetry --repo <path> --blueprint <path> [options]
+                   archtelemetry --blueprint <path> --incremental [--repo <path>] [--src <dir>] [--changed <files>...] [--format console|ai-feedback]
+                   archtelemetry --blueprint <path> --watch [--repo <path>] [--src <dir>] [--format console|ai-feedback]
++                  archtelemetry --version
+ 
+                 Options:
+                   --commits <n>         Commits to analyze (default: 20)

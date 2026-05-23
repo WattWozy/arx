@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<report name="archtelemetry-test">
+  <package name="dev/archtelemetry/domain">
+    <class name="dev/archtelemetry/domain/ModuleMetrics" sourcefilename="ModuleMetrics.java">
+      <method name="compute" desc="(Ldev/archtelemetry/domain/Module;II)Ldev/archtelemetry/domain/ModuleMetrics;" line="15">
+        <counter type="INSTRUCTION" missed="0" covered="10"/>
+        <counter type="LINE" missed="0" covered="4"/>
+        <counter type="COMPLEXITY" missed="0" covered="2"/>
+        <counter type="METHOD" missed="0" covered="1"/>
+      </method>
+      <method name="withCoverage" desc="(DD)Ldev/archtelemetry/domain/ModuleMetrics;" line="40">
+        <counter type="INSTRUCTION" missed="5" covered="0"/>
+        <counter type="LINE" missed="2" covered="0"/>
+        <counter type="COMPLEXITY" missed="1" covered="0"/>
+        <counter type="METHOD" missed="1" covered="0"/>
+      </method>
+    </class>
+    <class name="dev/archtelemetry/domain/MethodCoverage" sourcefilename="MethodCoverage.java">
+      <method name="crap" desc="()D" line="10">
+        <counter type="INSTRUCTION" missed="0" covered="8"/>
+        <counter type="LINE" missed="0" covered="3"/>
+        <counter type="COMPLEXITY" missed="0" covered="3"/>
+        <counter type="METHOD" missed="0" covered="1"/>
+      </method>
+    </class>
+  </package>
+  <package name="dev/archtelemetry/application">
+    <class name="dev/archtelemetry/application/ComputeMetrics" sourcefilename="ComputeMetrics.java">
+      <method name="compute" desc="(...)" line="30">
+        <counter type="INSTRUCTION" missed="2" covered="18"/>
+        <counter type="LINE" missed="1" covered="8"/>
+        <counter type="COMPLEXITY" missed="1" covered="3"/>
+        <counter type="METHOD" missed="0" covered="1"/>
+      </method>
+    </class>
+  </package>
+</report>
