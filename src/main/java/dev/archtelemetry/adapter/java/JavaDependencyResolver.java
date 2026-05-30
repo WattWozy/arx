@@ -12,6 +12,7 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -178,17 +179,25 @@ public final class JavaDependencyResolver implements LocatingDependencyResolver 
     }
 
     private Optional<Module> resolveModuleByPackage(String packageName) {
+        // Use the longest matching pattern (most specific wins) to resolve overlapping
+        // module definitions such as application vs application-port.
         return modules.stream()
-                .filter(m -> m.packagePatterns().stream()
-                        .anyMatch(p -> packageMatchesPattern(packageName, p)))
-                .findFirst();
+                .flatMap(m -> m.packagePatterns().stream()
+                        .filter(p -> packageMatchesPattern(packageName, p))
+                        .map(p -> Map.entry(m, p)))
+                .max(Comparator.comparingInt(e -> e.getValue().length()))
+                .map(Map.Entry::getKey);
     }
 
     private Optional<Module> resolveModuleByImport(String importFqn) {
+        // Use the longest matching pattern (most specific wins) to resolve overlapping
+        // module definitions such as application vs application-port.
         return modules.stream()
-                .filter(m -> m.packagePatterns().stream()
-                        .anyMatch(p -> importMatchesPattern(importFqn, p)))
-                .findFirst();
+                .flatMap(m -> m.packagePatterns().stream()
+                        .filter(p -> importMatchesPattern(importFqn, p))
+                        .map(p -> Map.entry(m, p)))
+                .max(Comparator.comparingInt(e -> e.getValue().length()))
+                .map(Map.Entry::getKey);
     }
 
     private boolean packageMatchesPattern(String packageName, String pattern) {
