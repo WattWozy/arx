@@ -10,7 +10,6 @@ import dev.archtelemetry.domain.MethodCoverage;
 import dev.archtelemetry.domain.Module;
 import dev.archtelemetry.domain.ModuleGitStats;
 import dev.archtelemetry.domain.ModuleMetrics;
-import dev.archtelemetry.domain.RefactoringSuggestion;
 import dev.archtelemetry.domain.Snapshot;
 import dev.archtelemetry.domain.Violation;
 
@@ -99,10 +98,9 @@ public final class ComputeMetrics {
         Set<ModuleMetrics> metricsSet = new HashSet<>(metricsMap.values());
         Set<DependencyCycle> cycles = detectCycles(new ArrayList<>(modules), deps);
         Set<Violation> violations = analyzeSnapshot.analyze(blueprint, snapshot);
-        List<RefactoringSuggestion> suggestions = new SuggestRefactorings().suggest(metricsSet, deps);
         Set<ArchitectureCommunity> communities = detectCommunities(modules, deps);
 
-        return new ArchitectureProfile(metricsSet, cycles, violations, suggestions, communities);
+        return new ArchitectureProfile(metricsSet, cycles, violations, communities);
     }
 
     // -------------------------------------------------------------------------

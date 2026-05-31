@@ -4,8 +4,10 @@ import dev.archtelemetry.application.HealthReport;
 import dev.archtelemetry.application.InstabilityWarning;
 import dev.archtelemetry.domain.ArchitectureCommunity;
 import dev.archtelemetry.domain.DriftDirection;
+import dev.archtelemetry.domain.Module;
 import dev.archtelemetry.domain.ModuleMetrics;
-import dev.archtelemetry.domain.RefactoringSuggestion;
+import dev.archtelemetry.domain.Recommendation;
+import dev.archtelemetry.domain.Severity;
 import dev.archtelemetry.domain.Snapshot;
 import dev.archtelemetry.domain.StaleModuleWarning;
 import dev.archtelemetry.domain.Trend;
@@ -20,11 +22,17 @@ import java.util.stream.Collectors;
 public final class HealthReportPrinter {
 
     public static void print(Trend trend, HealthReport report, List<Snapshot> snapshots) {
-        print(trend, report, snapshots, List.of());
+        print(trend, report, snapshots, List.of(), List.of());
     }
 
     public static void print(Trend trend, HealthReport report, List<Snapshot> snapshots,
                              List<StaleModuleWarning> staleWarnings) {
+        print(trend, report, snapshots, staleWarnings, List.of());
+    }
+
+    public static void print(Trend trend, HealthReport report, List<Snapshot> snapshots,
+                             List<StaleModuleWarning> staleWarnings,
+                             List<Recommendation> recommendations) {
         if (!staleWarnings.isEmpty()) {
             System.out.println("--- Blueprint Warnings: Stale Modules ---");
             staleWarnings.stream()
@@ -56,6 +64,11 @@ public final class HealthReportPrinter {
         System.out.println();
 
         if (report.latestProfile() != null) {
+            Set<Module> suppressedModules = recommendations.stream()
+                    .filter(r -> r.code().equals("SUPPRESS"))
+                    .map(Recommendation::target)
+                    .collect(Collectors.toSet());
+
             System.out.println("--- Module Metrics (latest snapshot) ---");
             System.out.printf("%-20s %6s %7s %11s %5s %11s %8s %9s %9s %9s  %s%n",
                     "Module", "Fan-In", "Fan-Out", "Instability", "WMC",
@@ -66,7 +79,7 @@ public final class HealthReportPrinter {
                             m.module().name(), m.fanIn(), m.fanOut(), m.instability(),
                             m.wmc(), m.abstractness(), m.distanceFromMainSequence(),
                             m.hotspot(), m.churnAcceleration(), m.busFactorRisk(),
-                            moduleFlag(m)));
+                            moduleFlag(m, suppressedModules)));
             System.out.println();
 
             boolean hasCoverage = report.latestProfile().moduleMetrics().stream()
@@ -95,14 +108,28 @@ public final class HealthReportPrinter {
                 System.out.println();
             }
 
-            if (!report.latestProfile().refactoringSuggestions().isEmpty()) {
-                System.out.println("--- Refactoring Suggestions ---");
-                report.latestProfile().refactoringSuggestions().forEach(s -> {
-                    String tag = s.type() == RefactoringSuggestion.Type.SPLIT ? "SPLIT" : "MERGE";
-                    System.out.printf("  [%s] %s: %s%n", tag, s.module().name(), s.reason());
+            System.out.println("--- Recommendations ---");
+            if (recommendations.isEmpty()) {
+                System.out.println("  (none)");
+            } else {
+                recommendations.forEach(r -> {
+                    String emoji = switch (r.severity()) {
+                        case ACTION_REQUIRED -> "🔴";
+                        case WARNING         -> "🟡";
+                        case INFO            -> "ℹ️ ";
+                    };
+                    System.out.printf("  %s %-16s %s — %s: %s%n",
+                            emoji, r.severity().name(), r.target().name(), r.code(), r.summary());
+                    if (!r.evidence().isEmpty()) {
+                        String ev = r.evidence().stream()
+                                .map(e -> e.source().name() + " → " + e.target().name())
+                                .collect(Collectors.joining(", "));
+                        System.out.println("     Evidence: " + ev);
+                    }
+                    System.out.println();
                 });
-                System.out.println();
             }
+            System.out.println();
 
             Set<ArchitectureCommunity> communities = report.latestProfile().communities();
             if (!communities.isEmpty()) {
@@ -196,7 +223,7 @@ public final class HealthReportPrinter {
         }
     }
 
-    private static String moduleFlag(ModuleMetrics m) {
+    private static String moduleFlag(ModuleMetrics m, Set<Module> suppressedModules) {
         int layer = m.module().layer();
         boolean highInstability = m.instability() > 0.5;
         boolean isHotspot = m.hotspot() > 0 && m.hotspot() > 50;
@@ -206,6 +233,8 @@ public final class HealthReportPrinter {
         if (isHotspot) flags.append("⚠ hotspot ");
         if (isBusFactor) flags.append("⚠ bus-factor ");
         if (flags.length() > 0) return flags.toString().trim();
+
+        if (highInstability && suppressedModules.contains(m.module())) return "";
 
         if (layer < 0) {
             return highInstability ? "⚠ high coupling" : "";

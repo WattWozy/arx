@@ -18,6 +18,7 @@ import dev.archtelemetry.application.AnalyzeSnapshot;
 import dev.archtelemetry.application.BlueprintValidator;
 import dev.archtelemetry.application.ComputeGitStats;
 import dev.archtelemetry.application.ComputeMetrics;
+import dev.archtelemetry.application.GenerateRecommendations;
 import dev.archtelemetry.application.HealthReport;
 import dev.archtelemetry.application.IncrementalResult;
 import dev.archtelemetry.application.InferBlueprint;
@@ -30,11 +31,14 @@ import dev.archtelemetry.application.port.ResolvedDataWithLocations;
 import dev.archtelemetry.application.port.ScanResultStore;
 import dev.archtelemetry.domain.ArchitectureProfile;
 import dev.archtelemetry.domain.DependencyCycle;
+import dev.archtelemetry.domain.DependencyGraph;
 import dev.archtelemetry.domain.Blueprint;
 import dev.archtelemetry.domain.CommitEntry;
 import dev.archtelemetry.domain.Hotspot;
 import dev.archtelemetry.domain.Module;
 import dev.archtelemetry.domain.ModuleGitStats;
+import dev.archtelemetry.domain.ModuleMetrics;
+import dev.archtelemetry.domain.Recommendation;
 import dev.archtelemetry.domain.ScanRecord;
 import dev.archtelemetry.domain.Snapshot;
 import dev.archtelemetry.domain.StaleModuleWarning;
@@ -468,8 +472,17 @@ public final class Main {
                 ? List.of()
                 : blueprintValidator.validate(blueprint, snapshots.get(snapshots.size() - 1));
 
+        List<Recommendation> recommendations = List.of();
+        if (report.latestProfile() != null && !snapshots.isEmpty()) {
+            Snapshot latestSnap = snapshots.get(snapshots.size() - 1);
+            DependencyGraph graph = DependencyGraph.from(latestSnap.dependencies(), blueprint.modules());
+            Map<Module, ModuleMetrics> metricsMap = report.latestProfile().moduleMetrics().stream()
+                    .collect(java.util.stream.Collectors.toMap(ModuleMetrics::module, m -> m));
+            recommendations = new GenerateRecommendations().generate(graph, metricsMap, blueprint);
+        }
+
         switch (format) {
-            case "console"     -> HealthReportPrinter.print(trend, report, snapshots, staleWarnings);
+            case "console"     -> HealthReportPrinter.print(trend, report, snapshots, staleWarnings, recommendations);
             case "json"        -> writeOutput(JsonReportWriter.generate(trend, report, snapshots, staleWarnings), outPath);
             case "markdown"    -> writeOutput(MarkdownReportWriter.generate(trend, report, snapshots, staleWarnings), outPath);
             case "html"        -> writeOutput(HtmlReportWriter.generate(trend, report, snapshots, staleWarnings), outPath);
