@@ -13,6 +13,7 @@ import dev.archtelemetry.application.AnalyzeHistory;
 import dev.archtelemetry.application.AnalyzeSnapshot;
 import dev.archtelemetry.application.ComputeGitStats;
 import dev.archtelemetry.application.ComputeMetrics;
+import dev.archtelemetry.application.GenerateRecommendations;
 import dev.archtelemetry.application.HealthReport;
 import dev.archtelemetry.application.InferBlueprint;
 import dev.archtelemetry.application.InstabilityWarning;
@@ -26,12 +27,15 @@ import dev.archtelemetry.domain.ArchitectureProfile;
 import dev.archtelemetry.domain.Blueprint;
 import dev.archtelemetry.domain.CommitEntry;
 import dev.archtelemetry.domain.DependencyCycle;
+import dev.archtelemetry.domain.DependencyEdge;
+import dev.archtelemetry.domain.DependencyGraph;
 import dev.archtelemetry.domain.Hotspot;
 import dev.archtelemetry.domain.HotspotSnapshot;
 import dev.archtelemetry.domain.MetricSnapshot;
 import dev.archtelemetry.domain.Module;
 import dev.archtelemetry.domain.ModuleGitStats;
 import dev.archtelemetry.domain.ModuleMetrics;
+import dev.archtelemetry.domain.Recommendation;
 import dev.archtelemetry.domain.ScanRecord;
 import dev.archtelemetry.domain.Snapshot;
 import dev.archtelemetry.domain.Trend;
@@ -261,6 +265,17 @@ public final class ArxMcpServer {
                 + "\"blueprint\":{\"type\":\"string\",\"description\":\"Path to blueprint (.blu) file\"}"
                 + "},"
                 + "\"required\":[\"repo\",\"commit\",\"blueprint\"]"
+                + "}"),
+            toolDef("get_recommendations",
+                "Generate architectural recommendations based on metrics, dependency graph, and blueprint",
+                "{"
+                + "\"type\": \"object\","
+                + "\"properties\":{"
+                + "\"repo\":{\"type\":\"string\",\"description\":\"Path to git repository\"},"
+                + "\"blueprint\":{\"type\":\"string\",\"description\":\"Path to blueprint (.blu) file\"},"
+                + "\"commits\":{\"type\":\"integer\",\"description\":\"Number of commits to analyze (default: 20)\",\"default\":20}"
+                + "},"
+                + "\"required\":[\"repo\",\"blueprint\"]"
                 + "}")
         };
         for (int i = 0; i < defs.length; i++) {
@@ -309,6 +324,7 @@ public final class ArxMcpServer {
             case "get_metric_history"  -> runGetMetricHistory(argumentsJson);
             case "get_hotspot_history" -> runGetHotspotHistory(argumentsJson);
             case "is_scanned"          -> runIsScanned(argumentsJson);
+            case "get_recommendations" -> runGetRecommendations(argumentsJson);
             default -> throw new IllegalArgumentException("Unknown tool: " + name);
         };
     }
@@ -563,7 +579,8 @@ public final class ArxMcpServer {
         if (!warnings.isEmpty()) sb.append("\n");
         sb.append("  ],\n");
 
-        sb.append("  \"staleModules\": []\n");
+        sb.append("  \"staleModules\": [],\n");
+        sb.append(buildRecommendationsJson(scan));
         sb.append("}\n");
         return sb.toString();
     }
@@ -586,6 +603,52 @@ public final class ArxMcpServer {
         String answer = new QueryArchitecture(new AnthropicLlmClient(apiKey))
                 .query(scan.report, profile, question);
         return "{\n  \"answer\": " + McpJson.escape(answer) + "\n}";
+    }
+
+    private String runGetRecommendations(String argsJson) {
+        String repoStr      = requireString(argsJson, "repo");
+        String blueprintStr = requireString(argsJson, "blueprint");
+        int commits         = McpJson.getInt(argsJson, "commits", 20);
+
+        ScanResult scan = buildFullReport(repoStr, blueprintStr, commits, null);
+        StringBuilder sb = new StringBuilder("{\n");
+        sb.append(buildRecommendationsJson(scan));
+        sb.append("}\n");
+        return sb.toString();
+    }
+
+    private String buildRecommendationsJson(ScanResult scan) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("  \"recommendations\": [\n");
+        if (scan.report.latestProfile() != null && !scan.snapshots.isEmpty()) {
+            Set<dev.archtelemetry.domain.Dependency> deps =
+                    scan.snapshots.get(scan.snapshots.size() - 1).dependencies();
+            Set<Module> modules = new java.util.HashSet<>(scan.blueprint.modules());
+            DependencyGraph graph = DependencyGraph.from(deps, modules);
+            Map<Module, ModuleMetrics> metricsMap = scan.report.latestProfile().moduleMetrics().stream()
+                    .collect(Collectors.toMap(ModuleMetrics::module, m -> m));
+            List<Recommendation> recs = new GenerateRecommendations()
+                    .generate(graph, metricsMap, scan.blueprint);
+            for (int i = 0; i < recs.size(); i++) {
+                Recommendation r = recs.get(i);
+                sb.append("    {\n");
+                sb.append("      \"module\": ").append(McpJson.escape(r.target().name())).append(",\n");
+                sb.append("      \"severity\": ").append(McpJson.escape(r.severity().name())).append(",\n");
+                sb.append("      \"code\": ").append(McpJson.escape(r.code())).append(",\n");
+                sb.append("      \"summary\": ").append(McpJson.escape(r.summary())).append(",\n");
+                sb.append("      \"rationale\": ").append(McpJson.escape(r.rationale())).append(",\n");
+                List<String> evidence = r.evidence().stream()
+                        .map(e -> McpJson.escape(e.source().name() + " -> " + e.target().name()
+                                + " [" + e.kind().name() + "]"))
+                        .toList();
+                sb.append("      \"evidence\": [").append(String.join(", ", evidence)).append("]\n");
+                sb.append("    }");
+                if (i < recs.size() - 1) sb.append(",");
+                sb.append("\n");
+            }
+        }
+        sb.append("  ]\n");
+        return sb.toString();
     }
 
     private String runGetViolationTrend(String argsJson) {

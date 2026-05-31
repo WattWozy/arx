@@ -54,7 +54,7 @@ class ArxMcpServerTest {
         String response = mockServer().handleMessage(
                 "{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"tools/list\",\"params\":{}}");
         int count = countOccurrences(response, "\"type\": \"object\"");
-        assertEquals(9, count, "each of the 9 tools must have inputSchema with type:object");
+        assertEquals(10, count, "each of the 10 tools must have inputSchema with type:object");
     }
 
     @Test
@@ -62,7 +62,7 @@ class ArxMcpServerTest {
         String response = mockServer().handleMessage(
                 "{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/list\",\"params\":{}}");
         int count = countOccurrences(response, "\"required\"");
-        assertEquals(9, count, "each of the 9 tools must have a required array in inputSchema");
+        assertEquals(10, count, "each of the 10 tools must have a required array in inputSchema");
     }
 
     @Test
